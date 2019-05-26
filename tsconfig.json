@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "amd",
+    "target": "es5",
+    "lib": ["ES2015.Promise", "ES2015", "DOM", "ES5", "ScriptHost"],
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "outFile": "app.js",
+    "sourceRoot": "./src/",
+    "rootDir": "./src/",
+    "sourceMap": true,
+    "strict": true
+  }
+}
