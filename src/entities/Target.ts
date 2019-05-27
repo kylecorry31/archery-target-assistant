@@ -25,6 +25,19 @@ class Target {
     }
 
     /**
+     * Remove an arrow from the target
+     * @param arrow the arrow to remove
+     */
+    public removeArrow(arrow: Arrow): void {
+        let idx = this.arrows.indexOf(arrow);
+        if (idx === -1){
+            return;
+            // throw new Error('The arrow is not on the target');
+        }
+        this.arrows.splice(idx, 1);
+    }
+
+    /**
      * @returns the arrows in the target
      */
     public getArrows(): Arrow[] {

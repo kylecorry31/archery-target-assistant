@@ -50,6 +50,13 @@ define("entities/Target", ["require", "exports"], function (require, exports) {
         Target.prototype.putArrow = function (arrow) {
             this.arrows.push(arrow);
         };
+        Target.prototype.removeArrow = function (arrow) {
+            var idx = this.arrows.indexOf(arrow);
+            if (idx === -1) {
+                return;
+            }
+            this.arrows.splice(idx, 1);
+        };
         Target.prototype.getArrows = function () {
             return this.arrows.slice(0, this.arrows.length);
         };
@@ -179,25 +186,118 @@ define("precision/ExtremeSpreadPrecisionStrategy", ["require", "exports"], funct
     }());
     return ExtremeSpreadPrecisionStrategy;
 });
-define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "entities/TargetRing", "scoring/LineBreakerHighestScorer", "accuracy/AverageAccuracyStrategy", "precision/MeanRadiusPrecisionStrategy"], function (require, exports, Arrow, Target, TargetRing, LineBreakerHighestScorer, AverageAccuracyStrategy, MeanRadiusPrecisionStrategy) {
+define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "entities/TargetRing", "scoring/LineBreakerHighestScorer", "accuracy/AverageAccuracyStrategy", "precision/CEPPrecisionStrategy"], function (require, exports, Arrow, Target, TargetRing, LineBreakerHighestScorer, AverageAccuracyStrategy, CEPPrecisionStrategy) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var arrow = new Arrow(0, -20);
-    var arrow2 = new Arrow(0, 20);
-    var arrow3 = new Arrow(0, 0);
-    var arrow4 = new Arrow(15, 10);
-    var arrow5 = new Arrow(8, 7);
-    var target = new Target([new TargetRing(0, 10, 9), new TargetRing(10, 20, 8)]);
+    var target = new Target([
+        new TargetRing(0, 20, 10),
+        new TargetRing(20, 40, 9),
+        new TargetRing(40, 60, 8),
+        new TargetRing(60, 80, 7),
+        new TargetRing(80, 100, 6),
+        new TargetRing(100, 120, 5),
+        new TargetRing(120, 140, 4),
+        new TargetRing(140, 160, 3),
+        new TargetRing(160, 180, 2),
+        new TargetRing(180, 200, 1)
+    ]);
     var scorer = new LineBreakerHighestScorer();
     var accuracy = new AverageAccuracyStrategy();
-    var precision = new MeanRadiusPrecisionStrategy();
-    target.putArrow(arrow);
-    target.putArrow(arrow2);
-    target.putArrow(arrow3);
-    target.putArrow(arrow4);
-    target.putArrow(arrow5);
-    console.log("Score: " + scorer.getScore(target));
-    console.log("Accuracy: " + accuracy.getAccuracy(target));
-    console.log("Precision: " + precision.getPrecision(target));
+    var precision = new CEPPrecisionStrategy(0.5);
+    var scoreElt = document.querySelector('#score');
+    var accuracyElt = document.querySelector('#accuracy');
+    var precisionElt = document.querySelector('#precision');
+    var arrowsElt = document.querySelector('#arrows');
+    var pixelsPerInch = 2;
+    function draw() {
+        background('#333');
+        var minDim = Math.min(height, width);
+        pixelsPerInch = 0.8 * minDim / 400;
+        var i = 0;
+        for (var _i = 0, _a = target.getRings().slice().sort(function (r1, r2) { return r2.getOuterRadius() - r1.getOuterRadius(); }); _i < _a.length; _i++) {
+            var ring = _a[_i];
+            stroke('black');
+            if (i >= 8) {
+                fill('yellow');
+            }
+            else if (i >= 6) {
+                fill('red');
+            }
+            else if (i >= 4) {
+                fill('blue');
+            }
+            else if (i >= 2) {
+                fill('black');
+                stroke('white');
+            }
+            else {
+                fill('white');
+            }
+            circle(width / 2, height / 2, ring.getOuterRadius() * pixelsPerInch * 2);
+            i++;
+        }
+        for (var _b = 0, _c = target.getArrows(); _b < _c.length; _b++) {
+            var arrow = _c[_b];
+            fill(0);
+            stroke('white');
+            circle(width / 2 + arrow.getX() * pixelsPerInch, height / 2 + arrow.getY() * pixelsPerInch, 5 * pixelsPerInch);
+        }
+        requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+    document.body.addEventListener('mouseClicked', function (data) {
+        var scaledX = (data.detail.clientX - width / 2) / pixelsPerInch;
+        var scaledY = (data.detail.clientY - height / 2) / pixelsPerInch;
+        if (keyIsDown(16)) {
+            var arrows = target.getArrows();
+            if (arrows.length === 0) {
+                return;
+            }
+            var _loop_1 = function (arrow) {
+                var distance = function (arrow) { return Math.hypot(arrow.getX() - scaledX, arrow.getY() - scaledY); };
+                var closest = arrows.slice().sort(function (a, b) { return distance(a) - distance(b); })[0];
+                if (distance(closest) <= 10) {
+                    target.removeArrow(closest);
+                }
+            };
+            for (var _i = 0, arrows_3 = arrows; _i < arrows_3.length; _i++) {
+                var arrow = arrows_3[_i];
+                _loop_1(arrow);
+            }
+        }
+        else {
+            target.putArrow(new Arrow(scaledX, scaledY));
+        }
+        if (target.getArrows().length === 0) {
+            resetMetrics();
+            return;
+        }
+        if (scoreElt != null) {
+            scoreElt.innerHTML = scorer.getScore(target).toFixed(0);
+        }
+        if (arrowsElt != null) {
+            arrowsElt.innerHTML = target.getArrows().length.toFixed(0);
+        }
+        if (accuracyElt != null) {
+            accuracyElt.innerHTML = (accuracy.getAccuracy(target) * 100).toFixed(1) + "%";
+        }
+        if (precisionElt != null) {
+            precisionElt.innerHTML = precision.getPrecision(target).toFixed(2);
+        }
+    });
+    function resetMetrics() {
+        if (scoreElt != null) {
+            scoreElt.innerHTML = "0";
+        }
+        if (arrowsElt != null) {
+            arrowsElt.innerHTML = "0";
+        }
+        if (accuracyElt != null) {
+            accuracyElt.innerHTML = "0.0%";
+        }
+        if (precisionElt != null) {
+            precisionElt.innerHTML = "0.00";
+        }
+    }
 });
 //# sourceMappingURL=app.js.map

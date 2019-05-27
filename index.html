@@ -4,8 +4,36 @@
     <meta charset="utf-8">
     <title>Archery Target Assistant</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.8.0/p5.min.js"></script>
     <script data-main="main.js" src="lib/require.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body>
+    <!-- <div id="instructions">
+      <h3>Instructions</h3>
+      <p>Add arrow: Click</p>
+      <p>Remove arrow: SHIFT + Click</p>
+      <p>Clear: Refresh</p>
+    </div> -->
+    <div id="metrics">
+      <table>
+        <tr>
+          <td class="metric-name">Score</td>
+          <td class="metric-value" id="score">0</td>
+        </tr>
+        <tr>
+            <td class="metric-name">Arrows</td>
+            <td class="metric-value" id="arrows">0</td>
+        </tr>
+        <tr>
+            <td class="metric-name">Accuracy</td>
+            <td class="metric-value" id="accuracy">0.0%</td>
+          </tr>
+          <tr>
+            <td class="metric-name">Precision CEP(0.5)</td>
+            <td class="metric-value" id="precision">0.00</td>
+          </tr>
+      </table>
+    </div>
   </body>
 </html>
