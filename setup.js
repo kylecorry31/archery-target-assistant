@@ -1,5 +1,5 @@
 function setup(){
-    createCanvas(window.innerWidth, window.innerHeight * 0.75);
+    createCanvas(window.innerWidth, window.innerHeight * 0.6);
 }
 
 function mouseClicked(data){

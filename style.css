@@ -21,7 +21,7 @@ html, body {
   right: 0;
   bottom: 0;
   width: calc(100% - 32px);
-  height: calc(25% - 32px);
+  min-height: calc(40% - 32px);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -15,42 +15,49 @@ import TargetDrawer = require("./ui/TargetDrawer");
 import CompetitionTargetDrawer = require("./ui/CompetitionTargetDrawer");
 import ArrowDrawer = require("./ui/ArrowDrawer");
 import CircleArrowDrawer = require("./ui/CircleArrowDrawer");
+import TargetFactory = require("./entities/TargetFactory");
+import PointCard = require("./scoring/PointCard");
+import MOAPrecisionStrategy = require("./precision/MOAPrecisionStrategy");
 
+// Units
 let minDim = Math.min(height, width);
-let pixelsPerInch = 0.8 * minDim / 400;
+let targetSize = 122 * 0.393701;
+let pixelsPerCm = 0.95 * minDim / targetSize;
+let arrowSize = 1;
 
-rectMode(CENTER);
-
-let target = new Target([
-    new TargetRing(0, 20, 10),
-    new TargetRing(20, 40, 9),
-    new TargetRing(40, 60, 8),
-    new TargetRing(60, 80, 7), 
-    new TargetRing(80, 100, 6),
-    new TargetRing(100, 120, 5),
-    new TargetRing(120, 140, 4),
-    new TargetRing(140, 160, 3),
-    new TargetRing(160, 180, 2),
-    new TargetRing(180, 200, 1)
-]);
+let target = TargetFactory.get122CmCompetitionTarget();
 let scorer: Scorer = new LineBreakerHighestScorer();
 let accuracy: AccuracyStrategy = new AverageAccuracyStrategy();
 let precision: PrecisionStrategy = new CEPPrecisionStrategy(0.5);
+let distance = prompt("Enter distance to target in yards");
+let moa: PrecisionStrategy = new MOAPrecisionStrategy(1, 0.5);
+
+let targetDrawer: TargetDrawer = new CompetitionTargetDrawer();
+let arrowDrawer: ArrowDrawer = new CircleArrowDrawer(arrowSize);
+
+let pointCard = new PointCard(scorer);
 
 let scoreElt = document.querySelector('#score');
 let accuracyElt = document.querySelector('#accuracy');
 let precisionElt = document.querySelector('#precision');
 let arrowsElt = document.querySelector('#arrows');
 let hitsMissesElt = document.querySelector('#hits-misses');
+let downloadElt = document.querySelector('#point-card');
+let moaName = document.querySelector('#moa-name');
+let moaElt = document.querySelector('#moa');
 
-let targetDrawer: TargetDrawer = new CompetitionTargetDrawer();
-let arrowDrawer: ArrowDrawer = new CircleArrowDrawer(5);
+if (distance != null){
+    let d = parseFloat(distance);
+    moa = new MOAPrecisionStrategy(d, 0.5);
+    if (moaName != null) moaName.innerHTML = "MOA @ " + d + " yards";
+}
 
 function draw(){
     background('#333');
+    strokeWeight(0.1);
     push();
     translate(width / 2, height / 2);
-    scale(pixelsPerInch);
+    scale(pixelsPerCm);
     targetDrawer.draw(target);
     fill(0);
     stroke(255);
@@ -59,12 +66,14 @@ function draw(){
     requestAnimationFrame(draw);
 }
 
-resetMetrics();
-requestAnimationFrame(draw);
-
 document.body.addEventListener('mouseClicked', (data: any) => {
-    let scaledX = (data.detail.clientX - width / 2) / pixelsPerInch;
-    let scaledY = (data.detail.clientY - height / 2) / pixelsPerInch
+
+    if (data.detail.clientY > height || data.detail.clientX > width || data.detail.clientY === 0){
+        return;
+    }
+
+    let scaledX = (data.detail.clientX - width / 2) / pixelsPerCm;
+    let scaledY = (data.detail.clientY - height / 2) / pixelsPerCm
 
     if (keyIsDown(16)){
         let arrows = target.getArrows();
@@ -104,12 +113,55 @@ document.body.addEventListener('mouseClicked', (data: any) => {
     }
     if (precisionElt != null){
         try {
-            precisionElt.innerHTML = precision.getPrecision(target).toFixed(2);
+            precisionElt.innerHTML = precision.getPrecision(target).toFixed(2) + " in.";
         } catch (e){
             precisionElt.innerHTML = "N/A";
         }
     }
+
+    if (moaElt != null){
+        try {
+            moaElt.innerHTML = moa.getPrecision(target).toFixed(2) + " MOA";
+        } catch (e){
+            moaElt.innerHTML = "N/A";
+        }
+    }
 });
+
+function downloadPointCard(){
+    let a = document.createElement('a');
+    a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(pointCard.generatePointCard(target)));
+    a.setAttribute('download', 'score-card-' + Date.now() + ".txt");
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function downloadMetrics(){
+    let metrics = "";
+    let arrows = target.getArrows();
+    let isOnTarget = (arrow: Arrow) => target.getRings().map(ring => ring.canContain(arrow)).reduce((a, b) => a || b, false);
+    let hits = arrows.filter(isOnTarget).length; 
+    metrics += "Score: " + scorer.getScore(target) + "\n";
+    metrics += "Shots: " + arrows.length + "\n";
+    metrics += "Hits/Misses: " + hits + "/" + (arrows.length - hits) + "\n";
+    metrics += "Accuracy: " + accuracy.getAccuracy(target) + "\n";
+    metrics += "CEP(0.5): " + precision.getPrecision(target) + "\n";
+    let distance = prompt("Enter distance to target in yards");
+    if (distance != null){
+        let d = parseFloat(distance);
+        let moa = new MOAPrecisionStrategy(d, 0.5).getPrecision(target);
+        metrics += "MOA @ " + d + " yards : " + moa.toFixed(2) + "\n";
+    }
+    let a = document.createElement('a');
+    a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(metrics));
+    a.setAttribute('download', 'archery-metrics-' + Date.now() + ".txt");
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
 
 function resetMetrics(){
     if (scoreElt != null){
@@ -127,4 +179,19 @@ function resetMetrics(){
     if (precisionElt != null){
         precisionElt.innerHTML = "N/A";
     }
+    if (moaElt != null){
+        moaElt.innerHTML = "N/A";
+    }
+}
+
+
+
+// MAIN
+resetMetrics();
+requestAnimationFrame(draw);
+
+if (downloadElt != null){
+    downloadElt.addEventListener('click', () => {
+        downloadPointCard();
+    });
 }

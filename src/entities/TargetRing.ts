@@ -14,14 +14,14 @@ class TargetRing {
     constructor(private innerRadius: number, private outerRadius: number, private pointValue: number){}
 
     /**
-     * @returns the inner radius
+     * @returns the inner radius in inches
      */
     public getInnerRadius(): number {
         return this.innerRadius;
     }
 
     /**
-     * @returns the outer radius
+     * @returns the outer radius in inches
      */
     public getOuterRadius(): number {
         return this.outerRadius;

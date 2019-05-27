@@ -196,35 +196,44 @@ define("ui/TargetDrawer", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("ui/CompetitionTargetDrawer", ["require", "exports"], function (require, exports) {
+define("ui/MultiColorTargetDrawer", ["require", "exports"], function (require, exports) {
     "use strict";
-    var CompetitionTargetDrawer = (function () {
-        function CompetitionTargetDrawer() {
+    var MultiColorTargetDrawer = (function () {
+        function MultiColorTargetDrawer(fillColors, strokeColors) {
+            this.fillColors = fillColors;
+            this.strokeColors = strokeColors;
+            if (fillColors.length !== strokeColors.length) {
+                throw new Error("Fill and stroke colors must be the same length");
+            }
+            this.fillColors.reverse();
+            this.strokeColors.reverse();
         }
-        CompetitionTargetDrawer.prototype.draw = function (target) {
+        MultiColorTargetDrawer.prototype.draw = function (target) {
+            if (this.fillColors.length !== target.getRings().length) {
+                throw new Error("Number of rings and colors don't match");
+            }
             var i = 0;
-            for (var _i = 0, _a = target.getRings().slice().sort(function (r1, r2) { return r2.getOuterRadius() - r1.getOuterRadius(); }); _i < _a.length; _i++) {
-                var ring = _a[_i];
-                stroke('black');
-                if (i >= 8) {
-                    fill('yellow');
-                }
-                else if (i >= 6) {
-                    fill('red');
-                }
-                else if (i >= 4) {
-                    fill('blue');
-                }
-                else if (i >= 2) {
-                    fill('black');
-                    stroke('white');
-                }
-                else {
-                    fill('white');
-                }
+            var rings = target.getRings().slice().sort(function (r1, r2) { return r2.getOuterRadius() - r1.getOuterRadius(); });
+            for (var _i = 0, rings_1 = rings; _i < rings_1.length; _i++) {
+                var ring = rings_1[_i];
+                stroke(this.strokeColors[i]);
+                fill(this.fillColors[i]);
                 circle(0, 0, ring.getOuterRadius() * 2);
                 i++;
             }
+        };
+        return MultiColorTargetDrawer;
+    }());
+    return MultiColorTargetDrawer;
+});
+define("ui/CompetitionTargetDrawer", ["require", "exports", "ui/MultiColorTargetDrawer"], function (require, exports, MultiColorTargetDrawer) {
+    "use strict";
+    var CompetitionTargetDrawer = (function () {
+        function CompetitionTargetDrawer() {
+            this.multiColorDrawer = new MultiColorTargetDrawer(['yellow', 'yellow', 'red', 'red', 'blue', 'blue', 'black', 'black', 'white', 'white'], ['black', 'black', 'black', 'black', 'black', 'black', 'white', 'white', 'black', 'black']);
+        }
+        CompetitionTargetDrawer.prototype.draw = function (target) {
+            this.multiColorDrawer.draw(target);
         };
         return CompetitionTargetDrawer;
     }());
@@ -247,39 +256,111 @@ define("ui/CircleArrowDrawer", ["require", "exports"], function (require, export
     }());
     return CircleArrowDrawer;
 });
-define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "entities/TargetRing", "scoring/LineBreakerHighestScorer", "accuracy/AverageAccuracyStrategy", "precision/CEPPrecisionStrategy", "ui/CompetitionTargetDrawer", "ui/CircleArrowDrawer"], function (require, exports, Arrow, Target, TargetRing, LineBreakerHighestScorer, AverageAccuracyStrategy, CEPPrecisionStrategy, CompetitionTargetDrawer, CircleArrowDrawer) {
+define("entities/TargetFactory", ["require", "exports", "entities/Target", "entities/TargetRing"], function (require, exports, Target, TargetRing) {
+    "use strict";
+    var CENTIMETERS_TO_INCHES = 0.393701;
+    var TargetFactory = (function () {
+        function TargetFactory() {
+        }
+        TargetFactory.get80CmCompetitionTarget = function () {
+            var targetSize = 80 * CENTIMETERS_TO_INCHES;
+            return this.createIncrementalTarget(targetSize, 10);
+        };
+        TargetFactory.get122CmCompetitionTarget = function () {
+            var targetSize = 122 * CENTIMETERS_TO_INCHES;
+            return this.createIncrementalTarget(targetSize, 10);
+        };
+        TargetFactory.createIncrementalTarget = function (targetSize, numRings) {
+            var rings = [];
+            for (var i = 0; i < numRings; i++) {
+                var targetIncrement = (targetSize / 2) / numRings;
+                rings.push(new TargetRing(targetIncrement * i, targetIncrement * (i + 1), (numRings - i)));
+            }
+            return new Target(rings);
+        };
+        return TargetFactory;
+    }());
+    return TargetFactory;
+});
+define("scoring/PointCard", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var PointCard = (function () {
+        function PointCard(scorer) {
+            this.scorer = scorer;
+        }
+        PointCard.prototype.generatePointCard = function (target) {
+            var arrows = target.getArrows();
+            var str = "";
+            for (var i = 0; i < arrows.length; i++) {
+                var arrow = arrows[i];
+                var arrowScore = this.scorer.getArrowScore(target, arrow);
+                var arrowIdx = i + 1;
+                if (arrowScore === 0) {
+                    str += arrowIdx + ": M\n";
+                }
+                else {
+                    str += arrowIdx + ": " + arrowScore + "\n";
+                }
+            }
+            str += "Total score: " + this.scorer.getScore(target);
+            return str;
+        };
+        return PointCard;
+    }());
+    return PointCard;
+});
+define("precision/MOAPrecisionStrategy", ["require", "exports", "precision/CEPPrecisionStrategy"], function (require, exports, CEPPrecisionStrategy) {
+    "use strict";
+    var MOAPrecisionStrategy = (function () {
+        function MOAPrecisionStrategy(distanceToTarget, proportion) {
+            this.distanceToTarget = distanceToTarget;
+            this.cep = new CEPPrecisionStrategy(proportion);
+        }
+        MOAPrecisionStrategy.prototype.getPrecision = function (target) {
+            var yardsToMinutes = 0.01046;
+            var oneMOA = yardsToMinutes * this.distanceToTarget;
+            return this.cep.getPrecision(target) / oneMOA;
+        };
+        return MOAPrecisionStrategy;
+    }());
+    return MOAPrecisionStrategy;
+});
+define("Main", ["require", "exports", "entities/Arrow", "scoring/LineBreakerHighestScorer", "accuracy/AverageAccuracyStrategy", "precision/CEPPrecisionStrategy", "ui/CompetitionTargetDrawer", "ui/CircleArrowDrawer", "entities/TargetFactory", "scoring/PointCard", "precision/MOAPrecisionStrategy"], function (require, exports, Arrow, LineBreakerHighestScorer, AverageAccuracyStrategy, CEPPrecisionStrategy, CompetitionTargetDrawer, CircleArrowDrawer, TargetFactory, PointCard, MOAPrecisionStrategy) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var minDim = Math.min(height, width);
-    var pixelsPerInch = 0.8 * minDim / 400;
-    rectMode(CENTER);
-    var target = new Target([
-        new TargetRing(0, 20, 10),
-        new TargetRing(20, 40, 9),
-        new TargetRing(40, 60, 8),
-        new TargetRing(60, 80, 7),
-        new TargetRing(80, 100, 6),
-        new TargetRing(100, 120, 5),
-        new TargetRing(120, 140, 4),
-        new TargetRing(140, 160, 3),
-        new TargetRing(160, 180, 2),
-        new TargetRing(180, 200, 1)
-    ]);
+    var targetSize = 122 * 0.393701;
+    var pixelsPerCm = 0.95 * minDim / targetSize;
+    var arrowSize = 1;
+    var target = TargetFactory.get122CmCompetitionTarget();
     var scorer = new LineBreakerHighestScorer();
     var accuracy = new AverageAccuracyStrategy();
     var precision = new CEPPrecisionStrategy(0.5);
+    var distance = prompt("Enter distance to target in yards");
+    var moa = new MOAPrecisionStrategy(1, 0.5);
+    var targetDrawer = new CompetitionTargetDrawer();
+    var arrowDrawer = new CircleArrowDrawer(arrowSize);
+    var pointCard = new PointCard(scorer);
     var scoreElt = document.querySelector('#score');
     var accuracyElt = document.querySelector('#accuracy');
     var precisionElt = document.querySelector('#precision');
     var arrowsElt = document.querySelector('#arrows');
     var hitsMissesElt = document.querySelector('#hits-misses');
-    var targetDrawer = new CompetitionTargetDrawer();
-    var arrowDrawer = new CircleArrowDrawer(5);
+    var downloadElt = document.querySelector('#point-card');
+    var moaName = document.querySelector('#moa-name');
+    var moaElt = document.querySelector('#moa');
+    if (distance != null) {
+        var d = parseFloat(distance);
+        moa = new MOAPrecisionStrategy(d, 0.5);
+        if (moaName != null)
+            moaName.innerHTML = "MOA @ " + d + " yards";
+    }
     function draw() {
         background('#333');
+        strokeWeight(0.1);
         push();
         translate(width / 2, height / 2);
-        scale(pixelsPerInch);
+        scale(pixelsPerCm);
         targetDrawer.draw(target);
         fill(0);
         stroke(255);
@@ -287,20 +368,21 @@ define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "enti
         pop();
         requestAnimationFrame(draw);
     }
-    resetMetrics();
-    requestAnimationFrame(draw);
     document.body.addEventListener('mouseClicked', function (data) {
-        var scaledX = (data.detail.clientX - width / 2) / pixelsPerInch;
-        var scaledY = (data.detail.clientY - height / 2) / pixelsPerInch;
+        if (data.detail.clientY > height || data.detail.clientX > width || data.detail.clientY === 0) {
+            return;
+        }
+        var scaledX = (data.detail.clientX - width / 2) / pixelsPerCm;
+        var scaledY = (data.detail.clientY - height / 2) / pixelsPerCm;
         if (keyIsDown(16)) {
             var arrows = target.getArrows();
             if (arrows.length === 0) {
                 return;
             }
             var _loop_1 = function (arrow) {
-                var distance = function (arrow) { return Math.hypot(arrow.getX() - scaledX, arrow.getY() - scaledY); };
-                var closest = arrows.slice().sort(function (a, b) { return distance(a) - distance(b); })[0];
-                if (distance(closest) <= 10) {
+                var distance_1 = function (arrow) { return Math.hypot(arrow.getX() - scaledX, arrow.getY() - scaledY); };
+                var closest = arrows.slice().sort(function (a, b) { return distance_1(a) - distance_1(b); })[0];
+                if (distance_1(closest) <= 10) {
                     target.removeArrow(closest);
                 }
             };
@@ -333,13 +415,54 @@ define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "enti
         }
         if (precisionElt != null) {
             try {
-                precisionElt.innerHTML = precision.getPrecision(target).toFixed(2);
+                precisionElt.innerHTML = precision.getPrecision(target).toFixed(2) + " in.";
             }
             catch (e) {
                 precisionElt.innerHTML = "N/A";
             }
         }
+        if (moaElt != null) {
+            try {
+                moaElt.innerHTML = moa.getPrecision(target).toFixed(2) + " MOA";
+            }
+            catch (e) {
+                moaElt.innerHTML = "N/A";
+            }
+        }
     });
+    function downloadPointCard() {
+        var a = document.createElement('a');
+        a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(pointCard.generatePointCard(target)));
+        a.setAttribute('download', 'score-card-' + Date.now() + ".txt");
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+    function downloadMetrics() {
+        var metrics = "";
+        var arrows = target.getArrows();
+        var isOnTarget = function (arrow) { return target.getRings().map(function (ring) { return ring.canContain(arrow); }).reduce(function (a, b) { return a || b; }, false); };
+        var hits = arrows.filter(isOnTarget).length;
+        metrics += "Score: " + scorer.getScore(target) + "\n";
+        metrics += "Shots: " + arrows.length + "\n";
+        metrics += "Hits/Misses: " + hits + "/" + (arrows.length - hits) + "\n";
+        metrics += "Accuracy: " + accuracy.getAccuracy(target) + "\n";
+        metrics += "CEP(0.5): " + precision.getPrecision(target) + "\n";
+        var distance = prompt("Enter distance to target in yards");
+        if (distance != null) {
+            var d = parseFloat(distance);
+            var moa_1 = new MOAPrecisionStrategy(d, 0.5).getPrecision(target);
+            metrics += "MOA @ " + d + " yards : " + moa_1.toFixed(2) + "\n";
+        }
+        var a = document.createElement('a');
+        a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(metrics));
+        a.setAttribute('download', 'archery-metrics-' + Date.now() + ".txt");
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
     function resetMetrics() {
         if (scoreElt != null) {
             scoreElt.innerHTML = "0";
@@ -356,6 +479,16 @@ define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "enti
         if (precisionElt != null) {
             precisionElt.innerHTML = "N/A";
         }
+        if (moaElt != null) {
+            moaElt.innerHTML = "N/A";
+        }
+    }
+    resetMetrics();
+    requestAnimationFrame(draw);
+    if (downloadElt != null) {
+        downloadElt.addEventListener('click', function () {
+            downloadPointCard();
+        });
     }
 });
 define("ui/SimpleTargetDrawer", ["require", "exports"], function (require, exports) {
