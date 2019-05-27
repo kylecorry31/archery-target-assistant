@@ -106,7 +106,7 @@ define("accuracy/AverageAccuracyStrategy", ["require", "exports"], function (req
             }
             var distances = target.getArrows().map(function (arrow) { return Math.sqrt(Math.pow(arrow.getX(), 2) + Math.pow(arrow.getY(), 2)); });
             var targetSize = Math.max.apply(null, target.getRings().map(function (ring) { return ring.getOuterRadius(); }));
-            var accuracies = distances.map(function (distance) { return 1 - (distance / targetSize); });
+            var accuracies = distances.map(function (distance) { return Math.max(0, 1 - (distance / targetSize)); });
             return accuracies.reduce(function (a, b) { return a + b; }, 0) / accuracies.length;
         };
         return AverageAccuracyStrategy;
@@ -124,6 +124,8 @@ define("precision/MeanRadiusPrecisionStrategy", ["require", "exports"], function
         }
         MeanRadiusPrecisionStrategy.prototype.getPrecision = function (target) {
             var arrows = target.getArrows();
+            var isOnTarget = function (arrow) { return target.getRings().map(function (ring) { return ring.canContain(arrow); }).reduce(function (a, b) { return a || b; }, false); };
+            arrows = arrows.filter(isOnTarget);
             if (arrows.length === 0) {
                 throw new Error("No arrows on target");
             }
@@ -144,6 +146,8 @@ define("precision/CEPPrecisionStrategy", ["require", "exports"], function (requi
         }
         CEPPrecisionStrategy.prototype.getPrecision = function (target) {
             var arrows = target.getArrows();
+            var isOnTarget = function (arrow) { return target.getRings().map(function (ring) { return ring.canContain(arrow); }).reduce(function (a, b) { return a || b; }, false); };
+            arrows = arrows.filter(isOnTarget);
             if (arrows.length === 0) {
                 throw new Error("No arrows on target");
             }
@@ -165,6 +169,8 @@ define("precision/ExtremeSpreadPrecisionStrategy", ["require", "exports"], funct
         }
         ExtremeSpreadPrecisionStrategy.prototype.getPrecision = function (target) {
             var arrows = target.getArrows();
+            var isOnTarget = function (arrow) { return target.getRings().map(function (ring) { return ring.canContain(arrow); }).reduce(function (a, b) { return a || b; }, false); };
+            arrows = arrows.filter(isOnTarget);
             if (arrows.length === 0) {
                 throw new Error("No arrows on target");
             }
@@ -186,9 +192,67 @@ define("precision/ExtremeSpreadPrecisionStrategy", ["require", "exports"], funct
     }());
     return ExtremeSpreadPrecisionStrategy;
 });
-define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "entities/TargetRing", "scoring/LineBreakerHighestScorer", "accuracy/AverageAccuracyStrategy", "precision/CEPPrecisionStrategy"], function (require, exports, Arrow, Target, TargetRing, LineBreakerHighestScorer, AverageAccuracyStrategy, CEPPrecisionStrategy) {
+define("ui/TargetDrawer", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("ui/CompetitionTargetDrawer", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var CompetitionTargetDrawer = (function () {
+        function CompetitionTargetDrawer() {
+        }
+        CompetitionTargetDrawer.prototype.draw = function (target) {
+            var i = 0;
+            for (var _i = 0, _a = target.getRings().slice().sort(function (r1, r2) { return r2.getOuterRadius() - r1.getOuterRadius(); }); _i < _a.length; _i++) {
+                var ring = _a[_i];
+                stroke('black');
+                if (i >= 8) {
+                    fill('yellow');
+                }
+                else if (i >= 6) {
+                    fill('red');
+                }
+                else if (i >= 4) {
+                    fill('blue');
+                }
+                else if (i >= 2) {
+                    fill('black');
+                    stroke('white');
+                }
+                else {
+                    fill('white');
+                }
+                circle(0, 0, ring.getOuterRadius() * 2);
+                i++;
+            }
+        };
+        return CompetitionTargetDrawer;
+    }());
+    return CompetitionTargetDrawer;
+});
+define("ui/ArrowDrawer", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("ui/CircleArrowDrawer", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var CircleArrowDrawer = (function () {
+        function CircleArrowDrawer(radius) {
+            this.radius = radius;
+        }
+        CircleArrowDrawer.prototype.draw = function (arrow) {
+            circle(arrow.getX(), arrow.getY(), this.radius);
+        };
+        return CircleArrowDrawer;
+    }());
+    return CircleArrowDrawer;
+});
+define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "entities/TargetRing", "scoring/LineBreakerHighestScorer", "accuracy/AverageAccuracyStrategy", "precision/CEPPrecisionStrategy", "ui/CompetitionTargetDrawer", "ui/CircleArrowDrawer"], function (require, exports, Arrow, Target, TargetRing, LineBreakerHighestScorer, AverageAccuracyStrategy, CEPPrecisionStrategy, CompetitionTargetDrawer, CircleArrowDrawer) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var minDim = Math.min(height, width);
+    var pixelsPerInch = 0.8 * minDim / 400;
+    rectMode(CENTER);
     var target = new Target([
         new TargetRing(0, 20, 10),
         new TargetRing(20, 40, 9),
@@ -208,42 +272,22 @@ define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "enti
     var accuracyElt = document.querySelector('#accuracy');
     var precisionElt = document.querySelector('#precision');
     var arrowsElt = document.querySelector('#arrows');
-    var pixelsPerInch = 2;
+    var hitsMissesElt = document.querySelector('#hits-misses');
+    var targetDrawer = new CompetitionTargetDrawer();
+    var arrowDrawer = new CircleArrowDrawer(5);
     function draw() {
         background('#333');
-        var minDim = Math.min(height, width);
-        pixelsPerInch = 0.8 * minDim / 400;
-        var i = 0;
-        for (var _i = 0, _a = target.getRings().slice().sort(function (r1, r2) { return r2.getOuterRadius() - r1.getOuterRadius(); }); _i < _a.length; _i++) {
-            var ring = _a[_i];
-            stroke('black');
-            if (i >= 8) {
-                fill('yellow');
-            }
-            else if (i >= 6) {
-                fill('red');
-            }
-            else if (i >= 4) {
-                fill('blue');
-            }
-            else if (i >= 2) {
-                fill('black');
-                stroke('white');
-            }
-            else {
-                fill('white');
-            }
-            circle(width / 2, height / 2, ring.getOuterRadius() * pixelsPerInch * 2);
-            i++;
-        }
-        for (var _b = 0, _c = target.getArrows(); _b < _c.length; _b++) {
-            var arrow = _c[_b];
-            fill(0);
-            stroke('white');
-            circle(width / 2 + arrow.getX() * pixelsPerInch, height / 2 + arrow.getY() * pixelsPerInch, 5 * pixelsPerInch);
-        }
+        push();
+        translate(width / 2, height / 2);
+        scale(pixelsPerInch);
+        targetDrawer.draw(target);
+        fill(0);
+        stroke(255);
+        target.getArrows().forEach(function (arrow) { return arrowDrawer.draw(arrow); });
+        pop();
         requestAnimationFrame(draw);
     }
+    resetMetrics();
     requestAnimationFrame(draw);
     document.body.addEventListener('mouseClicked', function (data) {
         var scaledX = (data.detail.clientX - width / 2) / pixelsPerInch;
@@ -278,11 +322,22 @@ define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "enti
         if (arrowsElt != null) {
             arrowsElt.innerHTML = target.getArrows().length.toFixed(0);
         }
+        if (hitsMissesElt != null) {
+            var arrows = target.getArrows();
+            var isOnTarget = function (arrow) { return target.getRings().map(function (ring) { return ring.canContain(arrow); }).reduce(function (a, b) { return a || b; }, false); };
+            var hits = arrows.filter(isOnTarget).length;
+            hitsMissesElt.innerHTML = hits + "/" + (arrows.length - hits);
+        }
         if (accuracyElt != null) {
             accuracyElt.innerHTML = (accuracy.getAccuracy(target) * 100).toFixed(1) + "%";
         }
         if (precisionElt != null) {
-            precisionElt.innerHTML = precision.getPrecision(target).toFixed(2);
+            try {
+                precisionElt.innerHTML = precision.getPrecision(target).toFixed(2);
+            }
+            catch (e) {
+                precisionElt.innerHTML = "N/A";
+            }
         }
     });
     function resetMetrics() {
@@ -292,12 +347,30 @@ define("Main", ["require", "exports", "entities/Arrow", "entities/Target", "enti
         if (arrowsElt != null) {
             arrowsElt.innerHTML = "0";
         }
+        if (hitsMissesElt != null) {
+            hitsMissesElt.innerHTML = "0/0";
+        }
         if (accuracyElt != null) {
             accuracyElt.innerHTML = "0.0%";
         }
         if (precisionElt != null) {
-            precisionElt.innerHTML = "0.00";
+            precisionElt.innerHTML = "N/A";
         }
     }
+});
+define("ui/SimpleTargetDrawer", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var SimpleTargetDrawer = (function () {
+        function SimpleTargetDrawer() {
+        }
+        SimpleTargetDrawer.prototype.draw = function (target) {
+            for (var _i = 0, _a = target.getRings().slice().sort(function (r1, r2) { return r2.getOuterRadius() - r1.getOuterRadius(); }); _i < _a.length; _i++) {
+                var ring = _a[_i];
+                circle(0, 0, ring.getOuterRadius() * 2);
+            }
+        };
+        return SimpleTargetDrawer;
+    }());
+    return SimpleTargetDrawer;
 });
 //# sourceMappingURL=app.js.map

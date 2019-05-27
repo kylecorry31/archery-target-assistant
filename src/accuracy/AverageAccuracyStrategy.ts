@@ -8,7 +8,7 @@ class AverageAccuracyStrategy implements AccuracyStrategy {
         }
         let distances = target.getArrows().map(arrow => Math.sqrt(arrow.getX()**2 + arrow.getY()**2));
         let targetSize = Math.max.apply(null, target.getRings().map(ring => ring.getOuterRadius()));
-        let accuracies = distances.map(distance => 1 - (distance / targetSize));
+        let accuracies = distances.map(distance => Math.max(0, 1 - (distance / targetSize)));
         return accuracies.reduce((a, b) => a + b, 0) / accuracies.length;
     }
 }

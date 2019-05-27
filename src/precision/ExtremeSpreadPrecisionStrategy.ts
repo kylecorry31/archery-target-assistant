@@ -8,6 +8,10 @@ import Arrow = require("../entities/Arrow");
 class ExtremeSpreadPrecisionStrategy implements PrecisionStrategy {
     getPrecision(target: Target): number {
         let arrows = target.getArrows();
+
+        let isOnTarget = (arrow: Arrow) => target.getRings().map(ring => ring.canContain(arrow)).reduce((a, b) => a || b, false);
+        arrows = arrows.filter(isOnTarget); 
+
         if (arrows.length === 0){
             throw new Error("No arrows on target");
         }

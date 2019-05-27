@@ -11,6 +11,15 @@ import MeanRadiusPrecisionStrategy = require("./precision/MeanRadiusPrecisionStr
 import CEPPrecisionStrategy = require("./precision/CEPPrecisionStrategy");
 import ExtremeSpreadPrecisionStrategy = require("./precision/ExtremeSpreadPrecisionStrategy");
 import p5 = require("p5");
+import TargetDrawer = require("./ui/TargetDrawer");
+import CompetitionTargetDrawer = require("./ui/CompetitionTargetDrawer");
+import ArrowDrawer = require("./ui/ArrowDrawer");
+import CircleArrowDrawer = require("./ui/CircleArrowDrawer");
+
+let minDim = Math.min(height, width);
+let pixelsPerInch = 0.8 * minDim / 400;
+
+rectMode(CENTER);
 
 let target = new Target([
     new TargetRing(0, 20, 10),
@@ -32,40 +41,25 @@ let scoreElt = document.querySelector('#score');
 let accuracyElt = document.querySelector('#accuracy');
 let precisionElt = document.querySelector('#precision');
 let arrowsElt = document.querySelector('#arrows');
+let hitsMissesElt = document.querySelector('#hits-misses');
 
-let pixelsPerInch = 2;
+let targetDrawer: TargetDrawer = new CompetitionTargetDrawer();
+let arrowDrawer: ArrowDrawer = new CircleArrowDrawer(5);
 
 function draw(){
     background('#333');
-    let minDim = Math.min(height, width);
-    pixelsPerInch = 0.8 * minDim / 400;
-    let i = 0;
-    for(let ring of [...target.getRings()].sort((r1, r2) => r2.getOuterRadius() - r1.getOuterRadius())){
-        stroke('black');
-        if (i >= 8){
-            fill('yellow');
-        } else if (i >=6){
-            fill('red');
-        } else if (i >= 4){
-            fill('blue');
-        } else if (i >= 2){
-            fill('black');
-            stroke('white');
-        } else {
-            fill('white');
-        }
-        circle(width / 2, height / 2, ring.getOuterRadius() * pixelsPerInch * 2);
-        i++;
-    }
-
-    for(let arrow of target.getArrows()){
-        fill(0);
-        stroke('white');
-        circle(width / 2 + arrow.getX() * pixelsPerInch, height / 2 + arrow.getY() * pixelsPerInch, 5 * pixelsPerInch);
-    }
+    push();
+    translate(width / 2, height / 2);
+    scale(pixelsPerInch);
+    targetDrawer.draw(target);
+    fill(0);
+    stroke(255);
+    target.getArrows().forEach(arrow => arrowDrawer.draw(arrow));
+    pop();
     requestAnimationFrame(draw);
 }
 
+resetMetrics();
 requestAnimationFrame(draw);
 
 document.body.addEventListener('mouseClicked', (data: any) => {
@@ -99,11 +93,21 @@ document.body.addEventListener('mouseClicked', (data: any) => {
     if (arrowsElt != null){
         arrowsElt.innerHTML = target.getArrows().length.toFixed(0);
     }
+    if (hitsMissesElt != null){
+        let arrows = target.getArrows();
+        let isOnTarget = (arrow: Arrow) => target.getRings().map(ring => ring.canContain(arrow)).reduce((a, b) => a || b, false);
+        let hits = arrows.filter(isOnTarget).length; 
+        hitsMissesElt.innerHTML = hits + "/" + (arrows.length - hits);
+    }
     if (accuracyElt != null){
         accuracyElt.innerHTML = (accuracy.getAccuracy(target) * 100).toFixed(1) + "%";
     }
     if (precisionElt != null){
-        precisionElt.innerHTML = precision.getPrecision(target).toFixed(2);
+        try {
+            precisionElt.innerHTML = precision.getPrecision(target).toFixed(2);
+        } catch (e){
+            precisionElt.innerHTML = "N/A";
+        }
     }
 });
 
@@ -114,10 +118,13 @@ function resetMetrics(){
     if (arrowsElt != null){
         arrowsElt.innerHTML = "0";
     }
+    if (hitsMissesElt != null){
+        hitsMissesElt.innerHTML = "0/0";
+    }
     if (accuracyElt != null){
         accuracyElt.innerHTML = "0.0%";
     }
     if (precisionElt != null){
-        precisionElt.innerHTML = "0.00";
+        precisionElt.innerHTML = "N/A";
     }
 }
