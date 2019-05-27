@@ -10,6 +10,7 @@ import PrecisionStrategy = require("./precision/PrecisionStrategy");
 import MeanRadiusPrecisionStrategy = require("./precision/MeanRadiusPrecisionStrategy");
 import CEPPrecisionStrategy = require("./precision/CEPPrecisionStrategy");
 import ExtremeSpreadPrecisionStrategy = require("./precision/ExtremeSpreadPrecisionStrategy");
+import p5 = require("p5");
 
 let target = new Target([
     new TargetRing(0, 20, 10),
