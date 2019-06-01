@@ -9,6 +9,8 @@
     "sourceRoot": "./src/",
     "rootDir": "./src/",
     "sourceMap": true,
-    "strict": true
-  }
+    "strict": true,
+  },
+  "include": ["./src/**/*"],
+  "exclude": ["./src/**/*.spec.ts"]
 }
