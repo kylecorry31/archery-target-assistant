@@ -81,6 +81,9 @@ define("scoring/LineBreakerHighestScorer", ["require", "exports"], function (req
             return target.getArrows().map(function (arrow) { return _this.getArrowScore(target, arrow); }).reduce(function (a, b) { return a + b; }, 0);
         };
         LineBreakerHighestScorer.prototype.getArrowScore = function (target, arrow) {
+            if (target.getArrows().indexOf(arrow) === -1) {
+                return 0;
+            }
             var containingRings = target.getRings().filter(function (ring) { return ring.canContain(arrow); });
             if (containingRings.length !== 0) {
                 return Math.max.apply(null, containingRings.map(function (ring) { return ring.getPointValue(); }));

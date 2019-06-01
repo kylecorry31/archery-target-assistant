@@ -12,6 +12,9 @@ class LineBreakerHighestScorer implements Scorer {
     }
 
     getArrowScore(target: Target, arrow: Arrow): number {
+        if (target.getArrows().indexOf(arrow) === -1){
+            return 0;
+        }
         let containingRings: TargetRing[] = target.getRings().filter(ring => ring.canContain(arrow));
         if(containingRings.length !== 0){
             return Math.max.apply(null, containingRings.map(ring => ring.getPointValue()));
