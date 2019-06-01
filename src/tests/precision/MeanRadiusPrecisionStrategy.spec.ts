@@ -1,9 +1,9 @@
 import { expect } from 'chai';
 import 'mocha';
-import Target = require('../entities/Target');
-import TargetRing = require('../entities/TargetRing');
-import MeanRadiusPrecisionStrategy = require('../precision/MeanRadiusPrecisionStrategy');
-import Arrow = require('../entities/Arrow');
+import Target = require('../../entities/Target');
+import TargetRing = require('../../entities/TargetRing');
+import MeanRadiusPrecisionStrategy = require('../../precision/MeanRadiusPrecisionStrategy');
+import Arrow = require('../../entities/Arrow');
 
 describe("Mean Radius Precision Srategy", () => {
 
