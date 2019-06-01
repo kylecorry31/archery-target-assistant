@@ -46,7 +46,24 @@ define("entities/Target", ["require", "exports"], function (require, exports) {
         function Target(rings) {
             this.rings = rings;
             this.arrows = [];
+            if (rings == null || rings.length === 0) {
+                throw new Error("Target must have rings");
+            }
+            for (var i in rings) {
+                for (var j in rings) {
+                    if (i !== j) {
+                        if (this.overlaps(rings[i], rings[j])) {
+                            throw new Error("Target rings can't overlap");
+                        }
+                    }
+                }
+            }
         }
+        Target.prototype.overlaps = function (ring1, ring2) {
+            var biggerRing = ring1.getOuterRadius() > ring2.getOuterRadius() ? ring1 : ring2;
+            var smallerRing = biggerRing === ring1 ? ring2 : ring1;
+            return smallerRing.getOuterRadius() > biggerRing.getInnerRadius() || smallerRing.getInnerRadius() >= biggerRing.getInnerRadius();
+        };
         Target.prototype.putArrow = function (arrow) {
             this.arrows.push(arrow);
         };

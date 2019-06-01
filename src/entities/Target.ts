@@ -14,6 +14,24 @@ class Target {
      */
     constructor(private rings: TargetRing[]){
         this.arrows = [];
+        if (rings == null || rings.length === 0){
+            throw new Error("Target must have rings");
+        }
+        for (let i in rings){
+            for (let j in rings){
+                if (i !== j){
+                    if (this.overlaps(rings[i], rings[j])){
+                        throw new Error("Target rings can't overlap");
+                    }
+                }
+            }
+        }
+    }
+
+    private overlaps(ring1: TargetRing, ring2: TargetRing): boolean {
+        let biggerRing = ring1.getOuterRadius() > ring2.getOuterRadius() ? ring1 : ring2;
+        let smallerRing = biggerRing === ring1 ? ring2 : ring1;
+        return smallerRing.getOuterRadius() > biggerRing.getInnerRadius() || smallerRing.getInnerRadius() >= biggerRing.getInnerRadius(); 
     }
 
     /**

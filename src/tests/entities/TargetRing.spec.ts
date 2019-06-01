@@ -1,8 +1,7 @@
 import { expect } from 'chai';
 import 'mocha';
-import '../entities/TargetRing';
-import Arrow = require('../entities/Arrow');
-import TargetRing = require('../entities/TargetRing');
+import Arrow = require('../../entities/Arrow');
+import TargetRing = require('../../entities/TargetRing');
 
 describe('Target Ring', () => {
     it("Can detect if it can contain an arrow", () => {
