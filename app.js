@@ -22,6 +22,15 @@ define("entities/TargetRing", ["require", "exports"], function (require, exports
             this.innerRadius = innerRadius;
             this.outerRadius = outerRadius;
             this.pointValue = pointValue;
+            if (innerRadius < 0) {
+                throw new Error("Inner radius must be non-negative");
+            }
+            if (outerRadius < 0) {
+                throw new Error("Outer radius must be non-negative");
+            }
+            if (innerRadius >= outerRadius) {
+                throw new Error("Inner radius must be smaller than the outer radius");
+            }
         }
         TargetRing.prototype.getInnerRadius = function () {
             return this.innerRadius;

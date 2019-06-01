@@ -11,7 +11,17 @@ class TargetRing {
      * @param outerRadius the outer radius
      * @param pointValue the point value
      */
-    constructor(private innerRadius: number, private outerRadius: number, private pointValue: number){}
+    constructor(private innerRadius: number, private outerRadius: number, private pointValue: number){
+        if (innerRadius < 0){
+            throw new Error("Inner radius must be non-negative");
+        }
+        if(outerRadius < 0){
+            throw new Error("Outer radius must be non-negative");
+        }
+        if (innerRadius >= outerRadius){
+            throw new Error("Inner radius must be smaller than the outer radius");
+        }
+    }
 
     /**
      * @returns the inner radius in inches
