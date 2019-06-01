@@ -18,7 +18,7 @@ class MeanRadiusPrecisionStrategy implements PrecisionStrategy {
 
         let meanX = arrows.map(arrow => arrow.getX()).reduce((a, b) => a + b, 0) / arrows.length;
         let meanY = arrows.map(arrow => arrow.getY()).reduce((a, b) => a + b, 0) / arrows.length;
-        let distances = target.getArrows().map(arrow => Math.hypot(arrow.getX() - meanX, arrow.getY() - meanY));
+        let distances = arrows.map(arrow => Math.hypot(arrow.getX() - meanX, arrow.getY() - meanY));
         return distances.reduce((a, b) => a + b, 0) / arrows.length;
     }
 }

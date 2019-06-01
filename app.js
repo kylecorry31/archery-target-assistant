@@ -131,7 +131,7 @@ define("precision/MeanRadiusPrecisionStrategy", ["require", "exports"], function
             }
             var meanX = arrows.map(function (arrow) { return arrow.getX(); }).reduce(function (a, b) { return a + b; }, 0) / arrows.length;
             var meanY = arrows.map(function (arrow) { return arrow.getY(); }).reduce(function (a, b) { return a + b; }, 0) / arrows.length;
-            var distances = target.getArrows().map(function (arrow) { return Math.hypot(arrow.getX() - meanX, arrow.getY() - meanY); });
+            var distances = arrows.map(function (arrow) { return Math.hypot(arrow.getX() - meanX, arrow.getY() - meanY); });
             return distances.reduce(function (a, b) { return a + b; }, 0) / arrows.length;
         };
         return MeanRadiusPrecisionStrategy;
