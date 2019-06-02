@@ -5,7 +5,7 @@ import TargetRing = require('../../entities/TargetRing');
 import ExtremeSpreadPrecisionStrategy = require('../../precision/ExtremeSpreadPrecisionStrategy');
 import Arrow = require('../../entities/Arrow');
 
-describe("Mean Radius Precision Srategy", () => {
+describe("Extreme Spread Precision Srategy", () => {
 
     let target: Target;
     let precision: ExtremeSpreadPrecisionStrategy;

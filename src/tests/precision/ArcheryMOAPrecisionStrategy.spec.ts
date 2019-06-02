@@ -5,7 +5,7 @@ import TargetRing = require('../../entities/TargetRing');
 import ArcheryMOAPrecisionStrategy = require('../../precision/ArcheryMOAPrecisionStrategy');
 import Arrow = require('../../entities/Arrow');
 
-describe("Mean Radius Precision Srategy", () => {
+describe("Archery MOA Precision Srategy", () => {
 
     let target: Target;
     let precision: ArcheryMOAPrecisionStrategy;

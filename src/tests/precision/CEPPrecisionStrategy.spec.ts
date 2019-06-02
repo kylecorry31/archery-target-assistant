@@ -5,7 +5,7 @@ import TargetRing = require('../../entities/TargetRing');
 import CEPPrecisionStrategy = require('../../precision/CEPPrecisionStrategy');
 import Arrow = require('../../entities/Arrow');
 
-describe("Mean Radius Precision Srategy", () => {
+describe("CEP Precision Srategy", () => {
 
     let target: Target;
     let precision: CEPPrecisionStrategy;
