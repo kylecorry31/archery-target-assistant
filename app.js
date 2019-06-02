@@ -172,8 +172,14 @@ define("precision/CEPPrecisionStrategy", ["require", "exports"], function (requi
     var CEPPrecisionStrategy = (function () {
         function CEPPrecisionStrategy(proportion) {
             this.proportion = proportion;
+            if (proportion < 0 || proportion > 1) {
+                throw new Error("Proportion must be >= 0 and <= 1");
+            }
         }
         CEPPrecisionStrategy.prototype.getPrecision = function (target) {
+            if (this.proportion === 0.0) {
+                return 0;
+            }
             var arrows = target.getArrows();
             var isOnTarget = function (arrow) { return target.getRings().map(function (ring) { return ring.canContain(arrow); }).reduce(function (a, b) { return a || b; }, false); };
             arrows = arrows.filter(isOnTarget);
@@ -184,38 +190,21 @@ define("precision/CEPPrecisionStrategy", ["require", "exports"], function (requi
             var centerY = arrows.map(function (arrow) { return arrow.getY(); }).reduce(function (a, b) { return a + b; }, 0) / arrows.length;
             var distance = function (arrow) { return Math.hypot(arrow.getX() - centerX, arrow.getY() - centerY); };
             var sorted = arrows.slice().sort(function (a, b) { return distance(a) - distance(b); });
-            var idx = Math.ceil(this.proportion * (arrows.length - 1));
+            var idx = Math.ceil(this.proportion * arrows.length) - 1;
             return distance(sorted[idx]);
         };
         return CEPPrecisionStrategy;
     }());
     return CEPPrecisionStrategy;
 });
-define("precision/ExtremeSpreadPrecisionStrategy", ["require", "exports"], function (require, exports) {
+define("precision/ExtremeSpreadPrecisionStrategy", ["require", "exports", "precision/CEPPrecisionStrategy"], function (require, exports, CEPPrecisionStrategy) {
     "use strict";
     var ExtremeSpreadPrecisionStrategy = (function () {
         function ExtremeSpreadPrecisionStrategy() {
+            this.cepPrecision = new CEPPrecisionStrategy(1.0);
         }
         ExtremeSpreadPrecisionStrategy.prototype.getPrecision = function (target) {
-            var arrows = target.getArrows();
-            var isOnTarget = function (arrow) { return target.getRings().map(function (ring) { return ring.canContain(arrow); }).reduce(function (a, b) { return a || b; }, false); };
-            arrows = arrows.filter(isOnTarget);
-            if (arrows.length === 0) {
-                throw new Error("No arrows on target");
-            }
-            var maxDistance = 0;
-            var distance = function (arrow1, arrow2) { return Math.hypot(arrow1.getX() - arrow2.getX(), arrow1.getY() - arrow2.getY()); };
-            for (var _i = 0, arrows_1 = arrows; _i < arrows_1.length; _i++) {
-                var arrow1 = arrows_1[_i];
-                for (var _a = 0, arrows_2 = arrows; _a < arrows_2.length; _a++) {
-                    var arrow2 = arrows_2[_a];
-                    var d = distance(arrow1, arrow2);
-                    if (d > maxDistance) {
-                        maxDistance = d;
-                    }
-                }
-            }
-            return maxDistance;
+            return this.cepPrecision.getPrecision(target) * 2;
         };
         return ExtremeSpreadPrecisionStrategy;
     }());
@@ -338,23 +327,23 @@ define("scoring/PointCard", ["require", "exports"], function (require, exports) 
     }());
     return PointCard;
 });
-define("precision/MOAPrecisionStrategy", ["require", "exports", "precision/CEPPrecisionStrategy"], function (require, exports, CEPPrecisionStrategy) {
+define("precision/ArcheryMOAPrecisionStrategy", ["require", "exports", "precision/CEPPrecisionStrategy"], function (require, exports, CEPPrecisionStrategy) {
     "use strict";
-    var MOAPrecisionStrategy = (function () {
-        function MOAPrecisionStrategy(distanceToTarget, proportion) {
+    var ArcheryMOAPrecisionStrategy = (function () {
+        function ArcheryMOAPrecisionStrategy(distanceToTarget, proportion) {
             this.distanceToTarget = distanceToTarget;
             this.cep = new CEPPrecisionStrategy(proportion);
         }
-        MOAPrecisionStrategy.prototype.getPrecision = function (target) {
-            var yardsToMinutes = 0.01046;
+        ArcheryMOAPrecisionStrategy.prototype.getPrecision = function (target) {
+            var yardsToMinutes = 0.1;
             var oneMOA = yardsToMinutes * this.distanceToTarget;
-            return this.cep.getPrecision(target) / oneMOA;
+            return (this.cep.getPrecision(target) * 2) / oneMOA;
         };
-        return MOAPrecisionStrategy;
+        return ArcheryMOAPrecisionStrategy;
     }());
-    return MOAPrecisionStrategy;
+    return ArcheryMOAPrecisionStrategy;
 });
-define("Main", ["require", "exports", "entities/Arrow", "scoring/LineBreakerHighestScorer", "accuracy/AverageAccuracyStrategy", "precision/CEPPrecisionStrategy", "ui/CompetitionTargetDrawer", "ui/CircleArrowDrawer", "entities/TargetFactory", "scoring/PointCard", "precision/MOAPrecisionStrategy"], function (require, exports, Arrow, LineBreakerHighestScorer, AverageAccuracyStrategy, CEPPrecisionStrategy, CompetitionTargetDrawer, CircleArrowDrawer, TargetFactory, PointCard, MOAPrecisionStrategy) {
+define("Main", ["require", "exports", "entities/Arrow", "scoring/LineBreakerHighestScorer", "accuracy/AverageAccuracyStrategy", "precision/CEPPrecisionStrategy", "ui/CompetitionTargetDrawer", "ui/CircleArrowDrawer", "entities/TargetFactory", "scoring/PointCard", "precision/ArcheryMOAPrecisionStrategy"], function (require, exports, Arrow, LineBreakerHighestScorer, AverageAccuracyStrategy, CEPPrecisionStrategy, CompetitionTargetDrawer, CircleArrowDrawer, TargetFactory, PointCard, ArcheryMOAPrecisionStrategy) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var minDim = Math.min(height, width);
@@ -366,7 +355,7 @@ define("Main", ["require", "exports", "entities/Arrow", "scoring/LineBreakerHigh
     var accuracy = new AverageAccuracyStrategy();
     var precision = new CEPPrecisionStrategy(0.5);
     var distance = prompt("Enter distance to target in yards");
-    var moa = new MOAPrecisionStrategy(1, 0.5);
+    var moa = new ArcheryMOAPrecisionStrategy(10, 1.0);
     var targetDrawer = new CompetitionTargetDrawer();
     var arrowDrawer = new CircleArrowDrawer(arrowSize);
     var pointCard = new PointCard(scorer);
@@ -380,9 +369,9 @@ define("Main", ["require", "exports", "entities/Arrow", "scoring/LineBreakerHigh
     var moaElt = document.querySelector('#moa');
     if (distance != null) {
         var d = parseFloat(distance);
-        moa = new MOAPrecisionStrategy(d, 0.5);
+        moa = new ArcheryMOAPrecisionStrategy(d, 1.0);
         if (moaName != null)
-            moaName.innerHTML = "MOA @ " + d + " yards";
+            moaName.innerHTML = "Archer's MOA @ " + d + " yards";
     }
     function draw() {
         background('#333');
@@ -408,16 +397,10 @@ define("Main", ["require", "exports", "entities/Arrow", "scoring/LineBreakerHigh
             if (arrows.length === 0) {
                 return;
             }
-            var _loop_1 = function (arrow) {
-                var distance_1 = function (arrow) { return Math.hypot(arrow.getX() - scaledX, arrow.getY() - scaledY); };
-                var closest = arrows.slice().sort(function (a, b) { return distance_1(a) - distance_1(b); })[0];
-                if (distance_1(closest) <= 10) {
-                    target.removeArrow(closest);
-                }
-            };
-            for (var _i = 0, arrows_3 = arrows; _i < arrows_3.length; _i++) {
-                var arrow = arrows_3[_i];
-                _loop_1(arrow);
+            var distance_1 = function (arrow) { return Math.hypot(arrow.getX() - scaledX, arrow.getY() - scaledY); };
+            var closest = arrows.slice().sort(function (a, b) { return distance_1(a) - distance_1(b); })[0];
+            if (distance_1(closest) <= 10) {
+                target.removeArrow(closest);
             }
         }
         else {
@@ -481,8 +464,8 @@ define("Main", ["require", "exports", "entities/Arrow", "scoring/LineBreakerHigh
         var distance = prompt("Enter distance to target in yards");
         if (distance != null) {
             var d = parseFloat(distance);
-            var moa_1 = new MOAPrecisionStrategy(d, 0.5).getPrecision(target);
-            metrics += "MOA @ " + d + " yards : " + moa_1.toFixed(2) + "\n";
+            var moa_1 = new ArcheryMOAPrecisionStrategy(d, 1.0).getPrecision(target);
+            metrics += "Archer's MOA @ " + d + " yards : " + moa_1.toFixed(2) + "\n";
         }
         var a = document.createElement('a');
         a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(metrics));
@@ -519,6 +502,22 @@ define("Main", ["require", "exports", "entities/Arrow", "scoring/LineBreakerHigh
             downloadPointCard();
         });
     }
+});
+define("precision/MOAPrecisionStrategy", ["require", "exports", "precision/CEPPrecisionStrategy"], function (require, exports, CEPPrecisionStrategy) {
+    "use strict";
+    var MOAPrecisionStrategy = (function () {
+        function MOAPrecisionStrategy(distanceToTarget, proportion) {
+            this.distanceToTarget = distanceToTarget;
+            this.cep = new CEPPrecisionStrategy(proportion);
+        }
+        MOAPrecisionStrategy.prototype.getPrecision = function (target) {
+            var yardsToMinutes = 0.01046;
+            var oneMOA = yardsToMinutes * this.distanceToTarget;
+            return this.cep.getPrecision(target) / oneMOA;
+        };
+        return MOAPrecisionStrategy;
+    }());
+    return MOAPrecisionStrategy;
 });
 define("ui/SimpleTargetDrawer", ["require", "exports"], function (require, exports) {
     "use strict";

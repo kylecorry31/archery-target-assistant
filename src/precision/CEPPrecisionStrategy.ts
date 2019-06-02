@@ -11,9 +11,18 @@ class CEPPrecisionStrategy implements PrecisionStrategy {
      * Default constructor
      * @param proportion the proportion of shots to calculate the CEP
      */
-    constructor(private proportion: number){}
+    constructor(private proportion: number){
+        if (proportion < 0 || proportion > 1){
+            throw new Error("Proportion must be >= 0 and <= 1");
+        }
+    }
 
     getPrecision(target: Target): number {
+
+        if (this.proportion === 0.0){
+            return 0;
+        }
+
         let arrows = target.getArrows();
 
         let isOnTarget = (arrow: Arrow) => target.getRings().map(ring => ring.canContain(arrow)).reduce((a, b) => a || b, false);
@@ -27,7 +36,7 @@ class CEPPrecisionStrategy implements PrecisionStrategy {
         let centerY = arrows.map(arrow => arrow.getY()).reduce((a, b) => a + b, 0) / arrows.length;
         let distance = (arrow: Arrow) => Math.hypot(arrow.getX() - centerX, arrow.getY() - centerY);
         let sorted = [...arrows].sort((a, b) => distance(a) - distance(b));
-        let idx = Math.ceil(this.proportion * (arrows.length - 1));
+        let idx = Math.ceil(this.proportion * arrows.length) - 1;
         return distance(sorted[idx]);
     }
 }

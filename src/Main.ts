@@ -17,7 +17,7 @@ import ArrowDrawer = require("./ui/ArrowDrawer");
 import CircleArrowDrawer = require("./ui/CircleArrowDrawer");
 import TargetFactory = require("./entities/TargetFactory");
 import PointCard = require("./scoring/PointCard");
-import MOAPrecisionStrategy = require("./precision/MOAPrecisionStrategy");
+import ArcheryMOAPrecisionStrategy = require("./precision/ArcheryMOAPrecisionStrategy");
 
 // Units
 let minDim = Math.min(height, width);
@@ -30,7 +30,7 @@ let scorer: Scorer = new LineBreakerHighestScorer();
 let accuracy: AccuracyStrategy = new AverageAccuracyStrategy();
 let precision: PrecisionStrategy = new CEPPrecisionStrategy(0.5);
 let distance = prompt("Enter distance to target in yards");
-let moa: PrecisionStrategy = new MOAPrecisionStrategy(1, 0.5);
+let moa: PrecisionStrategy = new ArcheryMOAPrecisionStrategy(10, 1.0);
 
 let targetDrawer: TargetDrawer = new CompetitionTargetDrawer();
 let arrowDrawer: ArrowDrawer = new CircleArrowDrawer(arrowSize);
@@ -48,8 +48,8 @@ let moaElt = document.querySelector('#moa');
 
 if (distance != null){
     let d = parseFloat(distance);
-    moa = new MOAPrecisionStrategy(d, 0.5);
-    if (moaName != null) moaName.innerHTML = "MOA @ " + d + " yards";
+    moa = new ArcheryMOAPrecisionStrategy(d, 1.0);
+    if (moaName != null) moaName.innerHTML = "Archer's MOA @ " + d + " yards";
 }
 
 function draw(){
@@ -80,12 +80,10 @@ document.body.addEventListener('mouseClicked', (data: any) => {
         if (arrows.length === 0){
             return;
         }
-        for(let arrow of arrows){
-            let distance = (arrow: Arrow) => Math.hypot(arrow.getX() - scaledX, arrow.getY() - scaledY);
-            let closest = [...arrows].sort((a, b) => distance(a) - distance(b))[0];
-            if (distance(closest) <= 10){
-                target.removeArrow(closest);
-            }
+        let distance = (arrow: Arrow) => Math.hypot(arrow.getX() - scaledX, arrow.getY() - scaledY);
+        let closest = [...arrows].sort((a, b) => distance(a) - distance(b))[0];
+        if (distance(closest) <= 10){
+            target.removeArrow(closest);
         }
     } else {
         target.putArrow(new Arrow(scaledX, scaledY));
@@ -151,8 +149,8 @@ function downloadMetrics(){
     let distance = prompt("Enter distance to target in yards");
     if (distance != null){
         let d = parseFloat(distance);
-        let moa = new MOAPrecisionStrategy(d, 0.5).getPrecision(target);
-        metrics += "MOA @ " + d + " yards : " + moa.toFixed(2) + "\n";
+        let moa = new ArcheryMOAPrecisionStrategy(d, 1.0).getPrecision(target);
+        metrics += "Archer's MOA @ " + d + " yards : " + moa.toFixed(2) + "\n";
     }
     let a = document.createElement('a');
     a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(metrics));
