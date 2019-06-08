@@ -2,39 +2,81 @@ html, body {
   padding: 0;
   margin: 0;
   font-family: sans-serif;
-  overflow: hidden;
-  background: #333;
+  background: #363640;
 }
 
-#metrics, #instructions {
-  position: absolute;
-  background: white;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-  padding: 16px;
-  border-radius: 4px;
-  z-index: 100;
-  user-select: none;
+.score-card-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed ;
 }
 
-#metrics {
-  left: 0;
-  right: 0;
-  bottom: 0;
+.score-card-table tr {
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.score-card-table tr:last-child {
+  border: none;
+  border-bottom: none;
+}
+
+.score-card-table td, .score-card-table th {
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #ffffff;
+  text-align: left;
+  font-size: 14px;
+  height: 48px;
+  padding-left: 16px;
+}
+
+.score-card-table-stats-start {
+  border-left: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.score-card-table th {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: lighter;
+}
+
+.score-card-table-input {
+  padding: 0 !important;
+}
+
+.score-card-table-add input {
   width: calc(100% - 32px);
-  min-height: calc(40% - 32px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#instructions {
-  left: 16px;
-  top: 16px;
-}
-
-.metric-name {
-  text-align: right;
+  height: 100%;
+  padding: 0;
+  padding-left: 16px;
   padding-right: 16px;
-  padding-bottom: 4px;
-  color: rgba(0, 0, 0, 0.6);
+  margin: 0;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  outline: 0;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
+
+.score-card-table-add input:focus {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.score-card-table-add button {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  text-align: center;
+  margin: 0;
+  border: 0;
+  outline: 0;
+  background: #1eb980;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.score-card-table-add button:hover, .score-card-table-add button:focus {
+  filter: brightness(110%);
+}
+

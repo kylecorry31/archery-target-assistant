@@ -1,0 +1,12 @@
+{
+    "endSize": 4,
+    "ends": [
+        {
+            "shots": ["1", "2", "M", "X"],
+            "groupCircumference": 12
+        },
+        {
+            "shots": ["M", "M", "M", "M"]
+        }
+    ]
+}
