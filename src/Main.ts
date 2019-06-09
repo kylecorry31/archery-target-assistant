@@ -3,20 +3,46 @@ import HTMLTableScoreCardDisplayer = require("./scorecard/HTMLTableScoreCardDisp
 import End = require("./scorecard/End");
 import Shot = require("./scorecard/Shot");
 import ScoreCardJSONParser = require("./scorecard/ScoreCardJSONParser");
+import ListView = require('./ui/ListView');
+import ScoreCardChooser = require("./ui/ScoreCardChooser");
+
 
 let fromLocalStorage = localStorage.getItem('scorecard');
+let newBtn = document.getElementById('new');
 
 if (fromLocalStorage){
     let json: any[] = JSON.parse(fromLocalStorage);
-    // TODO: display all saved cards and let user choose
+    let cards = [];
     for(let i = 0; i < json.length; i++){
         let parsed = ScoreCardJSONParser.parse(json[i]);
         if (!parsed){
             throw new Error("Could not parse scorecard from localstorage");
         }
-        showScoreCard(parsed, i);
+        cards.push(parsed);
     }
-} else {
+
+    let scoreCardChooser = new ScoreCardChooser(cards);
+    document.body.appendChild(scoreCardChooser);
+    scoreCardChooser.addEventListener('score-card-selected', ev => {
+        let customEv = ev as CustomEvent;
+        var scoreCard = customEv.detail.card as ScoreCard;
+        var id = customEv.detail.id as number;
+        showScoreCard(scoreCard, id);
+    });
+}
+
+if(newBtn){
+    newBtn.addEventListener('click', createNewScoreCard);
+}
+
+function createNewScoreCard(){
+
+    let ls =  localStorage.getItem('scorecard');
+    let id = 0;
+    if (ls){
+        id = JSON.parse(ls).length;
+    }
+
     let endSize = prompt("Number of arrows per end");
 
     if(!endSize){
@@ -25,9 +51,14 @@ if (fromLocalStorage){
         throw new Error("End size must be given");
     }
 
-    showScoreCard(new ScoreCard(parseInt(endSize)));
-}
+    let name = prompt("Score card name");
 
+    if (!name){
+        name = "Score Card";
+    }
+
+    showScoreCard(new ScoreCard(parseInt(endSize), name), id);
+}
 
 function showScoreCard(scoreCard: ScoreCard, id?: number){
     let displayer = new HTMLTableScoreCardDisplayer(document.body);

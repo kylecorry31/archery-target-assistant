@@ -80,3 +80,25 @@ html, body {
   filter: brightness(110%);
 }
 
+score-card-chooser {
+  width: 100%;
+  color: white;
+}
+
+#new {
+  position: absolute;
+  z-index: 100;
+  right: 16px;
+  bottom: 16px;
+  border-radius: 50%;
+  background: #1eb980;
+  border: none;
+  outline: none;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
+}

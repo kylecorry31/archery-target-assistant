@@ -6,13 +6,21 @@ import End = require("./End");
 class ScoreCard {
 
     private ends: End[];
+    private created: Date;
 
     /**
      * Default constructor
      * @param endSize the number of shots per end
+     * @param name the name of the score card
+     * @param created when the score card was created
      */
-    constructor(private endSize: number){
+    constructor(private endSize: number, private name: string, created?: Date){
         this.ends = [];
+        if(!created){
+            this.created = new Date();
+        } else {
+            this.created = created;
+        }
     }
 
     /**
@@ -20,6 +28,20 @@ class ScoreCard {
      */
     getEndSize(): number {
         return this.endSize;
+    }
+
+    /**
+     * @returns the name of the score card
+     */
+    getName(): string {
+        return this.name;
+    }
+
+    /**
+     * @returns the date the score card was created
+     */
+    getCreatedDate(): Date {
+        return this.created;
     }
 
     /**

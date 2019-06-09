@@ -11,6 +11,8 @@ class ScoreCardJSONParser {
      */
     static parse(json: any): ScoreCard | undefined {
         let endSize = json.endSize;
+        let name = json.name;
+        let created = new Date(json.created);
         let ends = [];
         for (let end of json.ends){
             let shots = [];
@@ -29,7 +31,7 @@ class ScoreCardJSONParser {
             }
             ends.push(new End(shots, circumference));
         }
-        let scoreCard = new ScoreCard(endSize);
+        let scoreCard = new ScoreCard(endSize, name, created);
         for(let end of ends){
             scoreCard.addEnd(end);
         }
@@ -42,6 +44,8 @@ class ScoreCardJSONParser {
      */
     static toJSON(scoreCard: ScoreCard): any {
         let endSize = scoreCard.getEndSize();
+        let created = scoreCard.getCreatedDate().getTime();
+        let name = scoreCard.getName();
         let ends = [];
         for (let end of scoreCard.getEnds()){
             let shots = [];
@@ -55,7 +59,7 @@ class ScoreCardJSONParser {
                 ends.push({shots: shots});
             }
         }
-        return {endSize: endSize, ends: ends};
+        return {endSize: endSize, ends: ends, name: name, created: created};
     }
 }
 
