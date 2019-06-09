@@ -14,7 +14,7 @@ class ScoreCardChooser extends HTMLElement {
         var listAdapter = [];
 
         for(let card of this.scoreCards){
-            let subtitle = `Created on ${card.getCreatedDate().toLocaleDateString()} - Total score of ${card.getEnds().map(end => end.getScore()).reduce((a, b) => a + b)}`;
+            let subtitle = `Created on ${card.getCreatedDate().toLocaleDateString()} - Total score of ${card.getEnds().map(end => end.getScore()).reduce((a, b) => a + b, 0)}`;
             listAdapter.push({title: card.getName(), subtitle: subtitle, value: card});
         }
 

@@ -102,3 +102,8 @@ score-card-chooser {
   height: 48px;
   cursor: pointer;
 }
+
+score-card-creator {
+  --modal-bg-color: #363640;
+  color: white;
+}

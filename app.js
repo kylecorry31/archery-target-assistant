@@ -1,3 +1,11 @@
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 define("scorecard/Shot", ["require", "exports"], function (require, exports) {
     "use strict";
     class Shot {
@@ -58,12 +66,27 @@ define("scorecard/End", ["require", "exports", "scorecard/Shot"], function (requ
     }
     return End;
 });
-define("scorecard/ScoreCard", ["require", "exports"], function (require, exports) {
+define("Uitls", ["require", "exports"], function (require, exports) {
+    "use strict";
+    class Utils {
+        constructor() { }
+        static requireNonNull(obj) {
+            if (obj == null || obj == undefined || typeof obj === 'undefined') {
+                throw new Error("Null pointer error");
+            }
+            return obj;
+        }
+    }
+    return Utils;
+});
+define("scorecard/ScoreCard", ["require", "exports", "Uitls"], function (require, exports, Utils) {
     "use strict";
     class ScoreCard {
         constructor(endSize, name, created) {
             this.endSize = endSize;
             this.name = name;
+            Utils.requireNonNull(endSize);
+            Utils.requireNonNull(name);
             this.ends = [];
             if (!created) {
                 this.created = new Date();
@@ -165,63 +188,6 @@ define("scorecard/HTMLTableScoreCardDisplayer", ["require", "exports", "scorecar
     }
     return HTMLTableScoreCardDisplayer;
 });
-define("scorecard/ScoreCardJSONParser", ["require", "exports", "scorecard/ScoreCard", "scorecard/Shot", "scorecard/End"], function (require, exports, ScoreCard, Shot, End) {
-    "use strict";
-    class ScoreCardJSONParser {
-        constructor() { }
-        static parse(json) {
-            let endSize = json.endSize;
-            let name = json.name;
-            let created = new Date(json.created);
-            let ends = [];
-            for (let end of json.ends) {
-                let shots = [];
-                for (let shot of end.shots) {
-                    if (shot === 'M') {
-                        shots.push(Shot.createMiss());
-                    }
-                    else if (shot === 'X') {
-                        shots.push(Shot.createBullseye());
-                    }
-                    else {
-                        shots.push(new Shot(parseInt(shot)));
-                    }
-                }
-                let circumference;
-                if (end.groupCircumference) {
-                    circumference = end.groupCircumference;
-                }
-                ends.push(new End(shots, circumference));
-            }
-            let scoreCard = new ScoreCard(endSize, name, created);
-            for (let end of ends) {
-                scoreCard.addEnd(end);
-            }
-            return scoreCard;
-        }
-        static toJSON(scoreCard) {
-            let endSize = scoreCard.getEndSize();
-            let created = scoreCard.getCreatedDate().getTime();
-            let name = scoreCard.getName();
-            let ends = [];
-            for (let end of scoreCard.getEnds()) {
-                let shots = [];
-                for (let shot of end.getShots()) {
-                    shots.push(shot.getDisplay());
-                }
-                let circumference = end.getGroupCircumference();
-                if (circumference) {
-                    ends.push({ shots: shots, groupCircumference: circumference });
-                }
-                else {
-                    ends.push({ shots: shots });
-                }
-            }
-            return { endSize: endSize, ends: ends, name: name, created: created };
-        }
-    }
-    return ScoreCardJSONParser;
-});
 define("ui/ListView", ["require", "exports"], function (require, exports) {
     "use strict";
     class ListView extends HTMLElement {
@@ -303,7 +269,7 @@ define("ui/ScoreCardChooser", ["require", "exports", "ui/ListView"], function (r
         connectedCallback() {
             var listAdapter = [];
             for (let card of this.scoreCards) {
-                let subtitle = `Created on ${card.getCreatedDate().toLocaleDateString()} - Total score of ${card.getEnds().map(end => end.getScore()).reduce((a, b) => a + b)}`;
+                let subtitle = `Created on ${card.getCreatedDate().toLocaleDateString()} - Total score of ${card.getEnds().map(end => end.getScore()).reduce((a, b) => a + b, 0)}`;
                 listAdapter.push({ title: card.getName(), subtitle: subtitle, value: card });
             }
             var listView = new ListView(listAdapter);
@@ -323,73 +289,326 @@ define("ui/ScoreCardChooser", ["require", "exports", "ui/ListView"], function (r
     window.customElements.define('score-card-chooser', ScoreCardChooser);
     return ScoreCardChooser;
 });
-define("Main", ["require", "exports", "scorecard/ScoreCard", "scorecard/HTMLTableScoreCardDisplayer", "scorecard/ScoreCardJSONParser", "ui/ScoreCardChooser"], function (require, exports, ScoreCard, HTMLTableScoreCardDisplayer, ScoreCardJSONParser, ScoreCardChooser) {
+define("db/ScoreCardDAO", ["require", "exports"], function (require, exports) {
+    "use strict";
+    class ScoreCardDAO {
+        constructor(scoreCard, id) {
+            this.scoreCard = scoreCard;
+            this.id = id;
+        }
+        getScoreCard() {
+            return this.scoreCard;
+        }
+        getID() {
+            return this.id;
+        }
+    }
+    return ScoreCardDAO;
+});
+define("db/ScoreCardDatabase", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    let fromLocalStorage = localStorage.getItem('scorecard');
-    let newBtn = document.getElementById('new');
-    if (fromLocalStorage) {
-        let json = JSON.parse(fromLocalStorage);
-        let cards = [];
-        for (let i = 0; i < json.length; i++) {
-            let parsed = ScoreCardJSONParser.parse(json[i]);
-            if (!parsed) {
-                throw new Error("Could not parse scorecard from localstorage");
+});
+define("db/ScoreCardJSON", ["require", "exports", "scorecard/Shot", "scorecard/End", "scorecard/ScoreCard", "db/ScoreCardDAO", "Uitls"], function (require, exports, Shot, End, ScoreCard, ScoreCardDAO, Utils) {
+    "use strict";
+    class ScoreCardJSON {
+        static toJSON(scoreCardDAO) {
+            Utils.requireNonNull(scoreCardDAO);
+            let scoreCard = scoreCardDAO.getScoreCard();
+            let endSize = scoreCard.getEndSize();
+            let created = scoreCard.getCreatedDate().getTime();
+            let name = scoreCard.getName();
+            let ends = [];
+            for (let end of scoreCard.getEnds()) {
+                let shots = [];
+                for (let shot of end.getShots()) {
+                    shots.push(shot.getDisplay());
+                }
+                let circumference = end.getGroupCircumference();
+                if (circumference) {
+                    ends.push({ shots: shots, groupCircumference: circumference });
+                }
+                else {
+                    ends.push({ shots: shots });
+                }
             }
-            cards.push(parsed);
+            return { endSize: endSize, ends: ends, name: name, created: created, id: scoreCardDAO.getID() };
         }
+        static parse(json) {
+            try {
+                let endSize = Utils.requireNonNull(json.endSize);
+                let id = Utils.requireNonNull(json.id);
+                let name = Utils.requireNonNull(json.name);
+                let created = new Date(Utils.requireNonNull(json.created));
+                Utils.requireNonNull(json.ends);
+                let ends = [];
+                for (let end of json.ends) {
+                    let shots = [];
+                    Utils.requireNonNull(end.shots);
+                    for (let shot of end.shots) {
+                        Utils.requireNonNull(shot);
+                        if (shot === 'M') {
+                            shots.push(Shot.createMiss());
+                        }
+                        else if (shot === 'X') {
+                            shots.push(Shot.createBullseye());
+                        }
+                        else {
+                            shots.push(new Shot(parseInt(shot)));
+                        }
+                    }
+                    let circumference;
+                    if (end.groupCircumference) {
+                        circumference = end.groupCircumference;
+                    }
+                    ends.push(new End(shots, circumference));
+                }
+                let scoreCard = new ScoreCard(endSize, name, created);
+                for (let end of ends) {
+                    scoreCard.addEnd(end);
+                }
+                return new ScoreCardDAO(scoreCard, id);
+            }
+            catch (e) {
+                throw new Error("Unable to parse score card from JSON");
+            }
+        }
+    }
+    return ScoreCardJSON;
+});
+define("db/LocalStorageDB", ["require", "exports", "db/ScoreCardDAO", "db/ScoreCardJSON", "Uitls"], function (require, exports, ScoreCardDAO, ScoreCardJSON, Utils) {
+    "use strict";
+    class LocalStorageDB {
+        getAll() {
+            return __awaiter(this, void 0, void 0, function* () {
+                let jsonStr = localStorage.getItem(LocalStorageDB.KEY);
+                if (!jsonStr) {
+                    return [];
+                }
+                let json = JSON.parse(jsonStr);
+                let daos = [];
+                for (let card of json) {
+                    let dao = ScoreCardJSON.parse(card);
+                    daos.push(dao);
+                }
+                return daos;
+            });
+        }
+        get(id) {
+            return __awaiter(this, void 0, void 0, function* () {
+                Utils.requireNonNull(id);
+                let daos = yield this.getAll();
+                let filtered = daos.filter(dao => dao.getID() === id);
+                if (filtered.length !== 0) {
+                    return filtered[0];
+                }
+                return null;
+            });
+        }
+        put(scoreCard) {
+            return __awaiter(this, void 0, void 0, function* () {
+                Utils.requireNonNull(scoreCard);
+                let daos = yield this.getAll();
+                let maxID = -1;
+                for (let dao of daos) {
+                    if (dao.getID() > maxID) {
+                        maxID = dao.getID();
+                    }
+                }
+                let id = maxID + 1;
+                let dao = new ScoreCardDAO(scoreCard, id);
+                daos.push(dao);
+                this.saveAll(daos);
+                return dao;
+            });
+        }
+        update(scoreCard) {
+            return __awaiter(this, void 0, void 0, function* () {
+                Utils.requireNonNull(scoreCard);
+                let id = scoreCard.getID();
+                let daos = yield this.getAll();
+                let oldDao = yield this.get(id);
+                if (oldDao) {
+                    let idx = daos.indexOf(oldDao);
+                    daos.splice(idx, 1);
+                    daos.push(scoreCard);
+                    this.saveAll(daos);
+                }
+                else {
+                    throw new Error("Score card not found");
+                }
+            });
+        }
+        delete(id) {
+            return __awaiter(this, void 0, void 0, function* () {
+                let daos = yield this.getAll();
+                let oldDao = yield this.get(id);
+                if (oldDao) {
+                    let idx = daos.indexOf(oldDao);
+                    daos.splice(idx, 1);
+                    this.saveAll(daos);
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            });
+        }
+        clear() {
+            localStorage.removeItem(LocalStorageDB.KEY);
+            return Promise.resolve();
+        }
+        saveAll(daos) {
+            let json = [];
+            for (let dao of daos) {
+                json.push(ScoreCardJSON.toJSON(dao));
+            }
+            localStorage.setItem(LocalStorageDB.KEY, JSON.stringify(json));
+        }
+    }
+    LocalStorageDB.KEY = "scorecards";
+    return LocalStorageDB;
+});
+define("ui/ScoreCardCreator", ["require", "exports", "scorecard/ScoreCard"], function (require, exports, ScoreCard) {
+    "use strict";
+    class ScoreCardCreator extends HTMLElement {
+        constructor(db) {
+            super();
+            this.db = db;
+            this.shadow = this.attachShadow({ mode: 'open' });
+        }
+        connectedCallback() {
+            this.shadow.innerHTML = `
+            <style>
+                :host {
+                    width: 100%;
+                    height: 100%;
+                    position: fixed;
+                    left: 0;
+                    right: 0;
+                    top: 0;
+                    bottom: 0;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    background: rgba(0, 0, 0, 0.6);
+                    --modal-bg-color: white;
+                }
+                .modal {
+                    width: 450px;
+                    height: 450px;
+                    max-width: calc(100% - 32px);
+                    max-height: calc(100% - 32px);
+                    z-index: 1000;
+                    background: var(--modal-bg-color);
+                    border-radius: 4px;
+                    padding: 16px;
+                }
+                .input {
+                    width: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    margin-bottom: 16px;
+                }
+                input {
+                    width: calc(100% - 32px);
+                    height: 100%;
+                    padding: 12px 16px;
+                    margin: 0;
+                    border: 0;
+                    outline: 0;
+                    background: rgba(255, 255, 255, 0.12);
+                    color: #ffffff;
+                }
+                input:focus {
+                    background: rgba(255, 255, 255, 0.24);
+                }
+                button {
+                    padding: 12px 16px;
+                    text-align: center;
+                    margin: 0;
+                    border: 0;
+                    outline: 0;
+                    background: #1eb980;
+                    color: #ffffff;
+                    cursor: pointer;
+                    border-radius: 4px;
+                }
+                
+                button:hover, button:focus {
+                    filter: brightness(110%);
+                }
+            </style>
+            <form class="modal">
+                <h1>Create a score card</h1>
+                <div class="input">
+                    <label for="name">Score card name</label>
+                    <input id="name" type="text"/>
+                </div>
+                <div class="input">
+                    <label for="shots">Shots per end</label>
+                    <input id="shots" type="number"/>
+                </div>
+                <button id="create" type="submit">Create</button>
+            </form>
+        `;
+            let createBtn = this.shadow.querySelector("#create");
+            let shotsInpt = this.shadow.querySelector("#shots");
+            let nameInpt = this.shadow.querySelector("#name");
+            if (createBtn) {
+                createBtn.addEventListener('click', ev => {
+                    if (shotsInpt && nameInpt) {
+                        let card = new ScoreCard(parseInt(shotsInpt.value), nameInpt.value);
+                        this.db.put(card).then(dao => {
+                            let ev = new CustomEvent('create', {
+                                detail: dao
+                            });
+                            this.dispatchEvent(ev);
+                        });
+                    }
+                    ev.preventDefault();
+                });
+            }
+        }
+    }
+    window.customElements.define('score-card-creator', ScoreCardCreator);
+    return ScoreCardCreator;
+});
+define("Main", ["require", "exports", "scorecard/HTMLTableScoreCardDisplayer", "ui/ScoreCardChooser", "db/LocalStorageDB", "ui/ScoreCardCreator"], function (require, exports, HTMLTableScoreCardDisplayer, ScoreCardChooser, LocalStorageDB, ScoreCardCreator) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    let db = new LocalStorageDB();
+    let newBtn = document.getElementById('new');
+    db.getAll().then(cardDAOs => {
+        if (cardDAOs.length === 0) {
+            createNewScoreCard();
+            return;
+        }
+        let cards = cardDAOs.map(dao => dao.getScoreCard());
         let scoreCardChooser = new ScoreCardChooser(cards);
         document.body.appendChild(scoreCardChooser);
         scoreCardChooser.addEventListener('score-card-selected', ev => {
             let customEv = ev;
-            var scoreCard = customEv.detail.card;
             var id = customEv.detail.id;
-            showScoreCard(scoreCard, id);
+            showScoreCard(cardDAOs[id]);
         });
-    }
+    }, () => db.clear());
     if (newBtn) {
         newBtn.addEventListener('click', createNewScoreCard);
     }
     function createNewScoreCard() {
-        let ls = localStorage.getItem('scorecard');
-        let id = 0;
-        if (ls) {
-            id = JSON.parse(ls).length;
-        }
-        let endSize = prompt("Number of arrows per end");
-        if (!endSize) {
-            alert("End size must be given");
-            location.reload();
-            throw new Error("End size must be given");
-        }
-        let name = prompt("Score card name");
-        if (!name) {
-            name = "Score Card";
-        }
-        showScoreCard(new ScoreCard(parseInt(endSize), name), id);
+        let creator = new ScoreCardCreator(db);
+        document.body.appendChild(creator);
+        creator.addEventListener('create', ev => {
+            let customEv = ev;
+            showScoreCard(customEv.detail);
+        });
     }
-    function showScoreCard(scoreCard, id) {
+    function showScoreCard(scoreCard) {
         let displayer = new HTMLTableScoreCardDisplayer(document.body);
-        displayer.display(scoreCard);
+        displayer.display(scoreCard.getScoreCard());
         displayer.setOnAddListener(() => {
-            let json = ScoreCardJSONParser.toJSON(scoreCard);
-            json.lastModified = Date.now();
-            let fromLocalStorage = localStorage.getItem('scorecard');
-            if (fromLocalStorage) {
-                let localJson = JSON.parse(fromLocalStorage);
-                if (id != null) {
-                    localJson[id] = json;
-                }
-                else {
-                    localJson.push(json);
-                    id = localJson.length;
-                }
-                localStorage.setItem('scorecard', JSON.stringify(localJson));
-            }
-            else {
-                localStorage.setItem('scorecard', JSON.stringify([json]));
-                id = 0;
-            }
+            db.update(scoreCard).then(() => console.log("Updated card #" + scoreCard.getID()));
         });
     }
 });
@@ -414,5 +633,62 @@ define("scorecard/ConsoleScoreCardDisplayer", ["require", "exports"], function (
         }
     }
     return ConsoleScoreCardDisplayer;
+});
+define("scorecard/ScoreCardJSONParser", ["require", "exports", "scorecard/ScoreCard", "scorecard/Shot", "scorecard/End"], function (require, exports, ScoreCard, Shot, End) {
+    "use strict";
+    class ScoreCardJSONParser {
+        constructor() { }
+        static parse(json) {
+            let endSize = json.endSize;
+            let name = json.name;
+            let created = new Date(json.created);
+            let ends = [];
+            for (let end of json.ends) {
+                let shots = [];
+                for (let shot of end.shots) {
+                    if (shot === 'M') {
+                        shots.push(Shot.createMiss());
+                    }
+                    else if (shot === 'X') {
+                        shots.push(Shot.createBullseye());
+                    }
+                    else {
+                        shots.push(new Shot(parseInt(shot)));
+                    }
+                }
+                let circumference;
+                if (end.groupCircumference) {
+                    circumference = end.groupCircumference;
+                }
+                ends.push(new End(shots, circumference));
+            }
+            let scoreCard = new ScoreCard(endSize, name, created);
+            for (let end of ends) {
+                scoreCard.addEnd(end);
+            }
+            return scoreCard;
+        }
+        static toJSON(scoreCard) {
+            let endSize = scoreCard.getEndSize();
+            let created = scoreCard.getCreatedDate().getTime();
+            let name = scoreCard.getName();
+            let ends = [];
+            for (let end of scoreCard.getEnds()) {
+                let shots = [];
+                for (let shot of end.getShots()) {
+                    shots.push(shot.getDisplay());
+                }
+                let circumference = end.getGroupCircumference();
+                if (circumference) {
+                    ends.push({ shots: shots, groupCircumference: circumference });
+                }
+                else {
+                    ends.push({ shots: shots });
+                }
+            }
+            return { endSize: endSize, ends: ends, name: name, created: created };
+        }
+    }
+    return ScoreCardJSONParser;
 });
 //# sourceMappingURL=app.js.map

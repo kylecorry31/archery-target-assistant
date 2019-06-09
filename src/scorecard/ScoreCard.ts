@@ -1,4 +1,5 @@
 import End = require("./End");
+import Utils = require('../Uitls');
 
 /**
  * A score card
@@ -15,6 +16,8 @@ class ScoreCard {
      * @param created when the score card was created
      */
     constructor(private endSize: number, private name: string, created?: Date){
+        Utils.requireNonNull(endSize);
+        Utils.requireNonNull(name);
         this.ends = [];
         if(!created){
             this.created = new Date();
